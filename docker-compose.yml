@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:13
+    container_name: user-service-postgres
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - user-service-network
+
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: user-service-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - user-service-network
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: user-service-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - user-service-network
+
+  # Axon Server
+  axonserver:
+    image: axoniq/axonserver
+    container_name: user-service-axonserver
+    ports:
+      - "8024:8024"
+      - "8124:8124"
+    volumes:
+      - axonserver_data:/data
+      - axonserver_events:/eventdata
+      - axonserver_config:/config
+    networks:
+      - user-service-network
+
+  # User Service Application
+  user-service:
+    build: .
+    container_name: user-service-app
+    depends_on:
+      - postgres
+      - kafka
+      - axonserver
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_AXON_AXONSERVER_SERVERS: axonserver:8124
+    networks:
+      - user-service-network
+    restart: unless-stopped
+
+networks:
+  user-service-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  axonserver_data:
+  axonserver_events:
+  axonserver_config:
