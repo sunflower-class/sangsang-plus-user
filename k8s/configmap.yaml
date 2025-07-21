@@ -6,17 +6,26 @@ metadata:
 data:
   application.yml: |
     server:
-      port: 8080
+      port: 8081
       forward-headers-strategy: framework
 
     spring:
       application:
         name: user-service
+      
+      # encryption Config: 64 Hex Key(32bytes) for AES-256
+      encryption:
+        key: ${ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+        
+      # kafka Configuration
+      kafka:
+        bootstrap-servers: kafka-service:9092
+        
       datasource:
         url: jdbc:postgresql://postgres-service:5432/userdb
         driver-class-name: org.postgresql.Driver
         username: postgres
-        password: postgres
+        password: ${DATABASE_PASSWORD:postgres}
       jpa:
         hibernate:
           ddl-auto: update
@@ -30,7 +39,7 @@ data:
           client:
             registration:
               google:
-                client-id: 508154093017-k2kn01n8ji4pj8lbtmbt5a56n2o24kf2.apps.googleusercontent.com
+                client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
                 client-secret: ${GOOGLE_CLIENT_SECRET}
                 scope:
                   - email

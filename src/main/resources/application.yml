@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: 8081
   forward-headers-strategy: framework
 
 spring:
@@ -24,4 +24,8 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+
+  # kafka Configuration
+  kafka:
+    bootstrap-servers: kafka:9092
       

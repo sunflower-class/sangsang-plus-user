@@ -3,21 +3,16 @@ kind: Service
 metadata:
   name: user-service
   namespace: user-service
-  annotations:
-    service.beta.kubernetes.io/azure-load-balancer-resource-group: "test"
-    service.beta.kubernetes.io/azure-pip-name: "testip"
-    service.beta.kubernetes.io/azure-load-balancer-tcp-idle-timeout: "30"
 spec:
-  type: LoadBalancer
-  loadBalancerIP: 20.249.144.238
+  type: ClusterIP
   selector:
     app: user-service
   ports:
   - name: http
     port: 80
-    targetPort: 8080
+    targetPort: 8081
     protocol: TCP
   - name: https
     port: 443
-    targetPort: 8080
+    targetPort: 8081
     protocol: TCP

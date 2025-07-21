@@ -71,27 +71,153 @@ mvn spring-boot:run
 
 ## API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login  
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/refresh` - Refresh JWT token
-- `GET /api/auth/oauth2/user` - Get OAuth2 user info
-
-### OAuth2 Endpoints
-- `GET /oauth2/authorization/google` - Initiate Google OAuth2 login
-- `GET /api/auth/oauth2/success` - OAuth2 success callback
-- `GET /api/auth/oauth2/failure` - OAuth2 failure callback
-
-### User Management
-- `GET /api/users` - List all users (public)
-- `GET /api/users/{id}` - Get user by ID (authenticated)
-- `POST /api/users` - Create user (authenticated)
-- `PUT /api/users/{id}` - Update user (authenticated)
-- `DELETE /api/users/{id}` - Delete user (authenticated)
-
 ### Health Check
 - `GET /api/health` - Service health status
+
+### User Management
+- `GET /api/users` - List all users with pagination
+- `GET /api/users/{id}` - Get user by ID
+- `GET /api/users/email/{email}` - Get user by email
+- `POST /api/users` - Create new user
+- `PUT /api/users/{id}` - Update user
+- `DELETE /api/users/{id}` - Delete user
+- `POST /api/users/authenticate` - Authenticate user credentials
+
+## API Testing for Gateway Integration
+
+### Health Check
+```bash
+GET http://user-service.user-service:80/api/health
+```
+**Response:**
+```json
+{
+  "status": "OK",
+  "service": "User Service"
+}
+```
+
+### Get All Users (with pagination)
+```bash
+GET http://user-service.user-service:80/api/users?page=0&size=10
+```
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "email": "user@example.com",
+    "name": "John Doe",
+    "profilePicture": null
+  }
+]
+```
+
+### Get User by ID
+```bash
+GET http://user-service.user-service:80/api/users/1
+```
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "name": "John Doe",
+  "role": "USER",
+  "provider": "LOCAL"
+}
+```
+
+### Get User by Email
+```bash
+GET http://user-service.user-service:80/api/users/email/user@example.com
+```
+
+### Create User
+```bash
+POST http://user-service.user-service:80/api/users
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "name": "New User",
+  "password": "password123"
+}
+```
+**Response:**
+```json
+{
+  "id": 2,
+  "email": "newuser@example.com",
+  "name": "New User",
+  "role": "USER",
+  "provider": "LOCAL",
+  "profilePicture": null
+}
+```
+
+### Update User
+```bash
+PUT http://user-service.user-service:80/api/users/1
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "email": "updated@example.com"
+}
+```
+
+### Delete User
+```bash
+DELETE http://user-service.user-service:80/api/users/1
+```
+**Response:**
+```json
+{
+  "message": "User deleted successfully"
+}
+```
+
+### Authenticate User
+```bash
+POST http://user-service.user-service:80/api/users/authenticate
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+**Response (Success):**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "name": "John Doe",
+  "role": "USER",
+  "provider": "LOCAL",
+  "profilePicture": null
+}
+```
+**Response (Error):**
+```json
+{
+  "error": "Invalid credentials"
+}
+```
+
+### Gateway Integration Example
+For API Gateway routing configuration:
+```yaml
+# Example gateway route
+routes:
+  - id: user-service
+    uri: http://user-service.user-service:80
+    predicates:
+      - Path=/api/users/**
+    filters:
+      - StripPrefix=0
+```
 
 ## Docker Deployment
 
@@ -108,15 +234,81 @@ docker-compose up
 
 ## Kubernetes Deployment
 
+### Prerequisites
+
+- Kubernetes cluster (AKS, EKS, GKE, or local minikube)
+- kubectl configured
+- Docker image built: `buildingbite/sangsangplus-user:latest`
+- Kafka service deployed (as `kafka-service` in the cluster)
+
+### Deployment Steps
+
+Deploy in the following order:
+
+1. **Create Namespace**
+   ```bash
+   kubectl apply -f k8s/namespace.yaml
+   ```
+
+2. **Deploy PostgreSQL Database**
+   ```bash
+   kubectl apply -f k8s/postgres.yaml
+   ```
+
+3. **Create ConfigMap** (Application Configuration)
+   ```bash
+   kubectl apply -f k8s/configmap.yaml
+   ```
+
+4. **Deploy User Service**
+   ```bash
+   kubectl apply -f k8s/deployment.yaml
+   ```
+
+5. **Create Service** (ClusterIP for internal access)
+   ```bash
+   kubectl apply -f k8s/service.yaml
+   ```
+
+### All-in-One Deployment
 ```bash
-# Apply Kubernetes manifests
+# Deploy all resources at once
 kubectl apply -f k8s/
 
 # Check deployment status
-kubectl get pods -n user-service
+kubectl get all -n user-service
 
-# Access logs
+# Check pod logs
 kubectl logs -f deployment/user-service -n user-service
+```
+
+### Service Access
+
+The User Service is deployed as ClusterIP and accessible within the cluster at:
+```
+http://user-service.user-service:80
+```
+
+For API Gateway integration (from default namespace):
+```yaml
+# Gateway environment variable
+- name: USER_SERVICE_URL
+  value: "http://user-service.user-service:80"
+```
+
+### Verify Deployment
+
+```bash
+# Check all resources in user-service namespace
+kubectl get all -n user-service
+
+# Check service endpoints
+kubectl get endpoints -n user-service
+
+# Test connectivity from another pod
+kubectl run test-pod --image=curlimages/curl -it --rm -- /bin/sh
+# Inside the pod:
+curl http://user-service.user-service:80/api/health
 ```
 
 ## Production Configuration

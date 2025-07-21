@@ -39,10 +39,10 @@ USER spring:spring
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8082/api/health || exit 1
+    CMD curl -f http://localhost:8081/api/health || exit 1
 
 # Expose port
-EXPOSE 8082
+EXPOSE 8081
 
 # Run the application
 ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

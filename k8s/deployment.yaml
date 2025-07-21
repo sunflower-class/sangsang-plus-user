@@ -4,7 +4,7 @@ metadata:
   name: user-service
   namespace: user-service
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: user-service
@@ -15,10 +15,10 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: testregistryforuser.azurecr.io/user-service:latest
+        image: buildingbite/sangsangplus-user:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
+        - containerPort: 8081
         env:
         - name: SPRING_CONFIG_LOCATION
           value: /config/application.yml
@@ -35,13 +35,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /api/health
-            port: 8080
+            port: 8081
           initialDelaySeconds: 60
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /api/health
-            port: 8080
+            port: 8081
           initialDelaySeconds: 30
           periodSeconds: 10
       volumes:

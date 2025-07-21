@@ -17,6 +17,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
+import javax.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,13 +31,20 @@ import java.util.stream.Collectors;
 @Tag(name = "User Management", description = "CRUD operations for user entities")
 public class UserController {
     
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+    
     @Autowired
     private UserService userService;
     
     @GetMapping("/health")
     @Operation(summary = "Health Check", description = "Check User service health status")
     @ApiResponse(responseCode = "200", description = "Service is healthy")
-    public ResponseEntity<Map<String, String>> health() {
+    public ResponseEntity<Map<String, String>> health(HttpServletRequest request) {
+        logger.info("=== HEALTH CHECK REQUEST ====");
+        logger.info("Remote IP: {}", request.getRemoteAddr());
+        logger.info("User-Agent: {}", request.getHeader("User-Agent"));
+        logger.info("X-Forwarded-For: {}", request.getHeader("X-Forwarded-For"));
+        logger.info("X-Real-IP: {}", request.getHeader("X-Real-IP"));
         return ResponseEntity.ok(Map.of("status", "OK", "service", "User Service"));
     }
     
@@ -43,7 +53,12 @@ public class UserController {
     @ApiResponse(responseCode = "200", description = "Users retrieved successfully")
     public ResponseEntity<List<PublicUserResponse>> getUsers(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        logger.info("=== GET USERS REQUEST ====");
+        logger.info("Remote IP: {}", request.getRemoteAddr());
+        logger.info("Request URI: {}", request.getRequestURI());
+        logger.info("Query String: {}", request.getQueryString());
         List<UserDto> users = userService.getAllUsers(page, size);
         List<PublicUserResponse> publicUsers = users.stream()
                 .map(user -> new PublicUserResponse(userService.getUserEntityById(user.getId()).get()))
@@ -76,7 +91,15 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "User created successfully"),
         @ApiResponse(responseCode = "400", description = "Email already exists or validation error")
     })
-    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest request, HttpServletRequest httpRequest) {
+        logger.info("=== CREATE USER REQUEST ====");
+        logger.info("Remote IP: {}", httpRequest.getRemoteAddr());
+        logger.info("Request Method: {}", httpRequest.getMethod());
+        logger.info("Request URI: {}", httpRequest.getRequestURI());
+        logger.info("Content-Type: {}", httpRequest.getHeader("Content-Type"));
+        logger.info("User-Agent: {}", httpRequest.getHeader("User-Agent"));
+        logger.info("X-Forwarded-For: {}", httpRequest.getHeader("X-Forwarded-For"));
+        logger.info("Request Body - Email: {}, Name: {}", request.getEmail(), request.getName());
         try {
             UserDto user = userService.createUser(request.getEmail(), request.getName(), request.getPassword());
             UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.getId()).get());

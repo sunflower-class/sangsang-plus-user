@@ -1,9 +1,10 @@
 package com.example.userservice.security;
 
 import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import org.apache.commons.codec.binary.Hex;
+import java.security.SecureRandom;
+import java.util.Base64;
 
 public class AES256GCMUtil {
     private static final String ENCRYPT_ALGO = "AES/GCM/NoPadding";
@@ -23,7 +24,7 @@ public class AES256GCMUtil {
 
         Cipher cipher = Cipher.getInstance(ENCRYPT_ALGO);
         GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-        cipher.init(Ciper.ENCRYPT_MODE, keySpec, gcmSpec);
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
 
         byte[] encrypted = cipher.doFinal(plainText.getBytes("UTF-8"));
 
@@ -36,7 +37,7 @@ public class AES256GCMUtil {
     }
 
     public String decrypt(String cipherText) throws Exception { 
-        byte[] encryptedIvTextBytes = Base64.getEncoder().decode(cipherText);
+        byte[] encryptedIvTextBytes = Base64.getDecoder().decode(cipherText);
 
         byte[] iv = new byte[IV_LENGTH];
         byte[] encryptedBytes = new byte[encryptedIvTextBytes.length - IV_LENGTH];
