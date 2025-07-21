@@ -5,6 +5,10 @@ server:
 spring:
   application:
     name: user-service
+  
+  # encryption Config: 64 Hex Key(32bytes) for AES-256
+  encryption:
+    key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     
   # Database Configuration
   datasource:

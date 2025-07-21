@@ -4,6 +4,7 @@ import com.example.userservice.model.User;
 import com.example.userservice.model.Provider;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.dto.UserDto;
+import com.example.userservice.security.AES256GCMUtilProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,8 +21,11 @@ public class UserService {
     
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AES256GCMUtilProvider aesUtil;
     
-    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     
     public Optional<User> getUserEntityById(Long id) {
         return userRepository.findById(id);
