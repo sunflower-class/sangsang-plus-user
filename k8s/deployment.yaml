@@ -22,6 +22,11 @@ spec:
         env:
         - name: SPRING_CONFIG_LOCATION
           value: /config/application.yml
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: encryption-secret
+              key: encryption.key
         volumeMounts:
         - name: config-volume
           mountPath: /config
