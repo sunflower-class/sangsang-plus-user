@@ -4,7 +4,14 @@
       "Bash(kubectl get pods:*)",
       "Bash(kubectl describe:*)",
       "Bash(kubectl logs:*)",
-      "Bash(kubectl get secret:*)"
+      "Bash(kubectl get secret:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(kubectl apply:*)"
     ],
     "deny": []
   }
