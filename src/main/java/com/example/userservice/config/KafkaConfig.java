@@ -27,7 +27,7 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:kafka:9092}")
     private String bootstrapServers;
     
-    @Value("${azure.eventhubs.connection-string:}")
+    @Value("${AZURE_EVENTHUBS_CONNECTION_STRING:${azure.eventhubs.connection-string:}}")
     private String eventHubsConnectionString;
 
     @Bean

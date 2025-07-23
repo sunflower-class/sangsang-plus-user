@@ -27,6 +27,8 @@ spec:
             secretKeyRef:
               name: encryption-secret
               key: encryption.key
+        - name: AZURE_EVENTHUBS_CONNECTION_STRING
+          value: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA="
         volumeMounts:
         - name: config-volume
           mountPath: /config

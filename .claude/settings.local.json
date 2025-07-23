@@ -12,7 +12,8 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(kubectl apply:*)",
-      "Bash(kubectl rollout restart:*)"
+      "Bash(kubectl rollout restart:*)",
+      "Bash(kubectl rollout status:*)"
     ],
     "deny": []
   }

@@ -8,7 +8,7 @@ import com.example.userservice.security.AES256GCMUtil;
 public class AES256GCMUtilProvider {
     private final AES256GCMUtil aesUtil;
 
-    public AES256GCMUtilProvider(@Value("${encryption.key}") String hexKey){
+    public AES256GCMUtilProvider(@Value("${spring.encryption.key}") String hexKey){
         byte[] keyBytes = hexStringToByteArray(hexKey);
         this.aesUtil = new AES256GCMUtil(keyBytes);
     }
