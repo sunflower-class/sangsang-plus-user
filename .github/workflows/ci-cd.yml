@@ -114,5 +114,5 @@ jobs:
         SERVICE_URL=$(kubectl get service sangsang-plus-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
         
         # Health check through gateway
-        curl -f http://${SERVICE_URL}/users/api/health || exit 1
+        curl -f http://${SERVICE_URL}/api/users/health || exit 1
         echo "Deployment successful!"
