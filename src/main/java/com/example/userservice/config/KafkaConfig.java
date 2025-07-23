@@ -41,12 +41,27 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        
+        // Azure Event Hubs specific configuration
+        configProps.put("security.protocol", "SASL_SSL");
+        configProps.put("sasl.mechanism", "PLAIN");
+        configProps.put("sasl.jaas.config", 
+            "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+            "username=\"$ConnectionString\" " +
+            "password=\"Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA=\";");
+        configProps.put("client.dns.lookup", "use_all_dns_ips");
+        configProps.put("acks", "all");
+        configProps.put("retries", 2147483647);
+        configProps.put("max.in.flight.requests.per.connection", 5);
+        configProps.put("enable.idempotence", true);
+        
         configProps.put(JsonSerializer.TYPE_MAPPINGS, 
             "userDeleted:com.example.userservice.dto.event.UserDeletedEvent," +
             "userSuspended:com.example.userservice.dto.event.UserSuspendedEvent," +
             "userUpdated:com.example.userservice.dto.event.UserUpdatedEvent");
         
         logger.info("Kafka Producer configured with bootstrap servers: {}", bootstrapServers);
+        logger.info("Azure Event Hubs configuration applied");
         
         return new DefaultKafkaProducerFactory<>(configProps);
     }
