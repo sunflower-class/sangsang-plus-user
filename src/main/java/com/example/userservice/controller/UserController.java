@@ -36,7 +36,7 @@ public class UserController {
     @Autowired
     private UserService userService;
     
-    @GetMapping("/health")
+    @GetMapping("/users/health")
     @Operation(summary = "Health Check", description = "Check User service health status")
     @ApiResponse(responseCode = "200", description = "Service is healthy")
     public ResponseEntity<Map<String, String>> health(HttpServletRequest request) {
