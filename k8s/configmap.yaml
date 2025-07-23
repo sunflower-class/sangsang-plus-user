@@ -20,19 +20,11 @@ data:
       # kafka Configuration
       kafka:
         bootstrap-servers: sangsangplus-eventhubs.servicebus.windows.net:9093
-        producer:
-          key-serializer: org.apache.kafka.common.serialization.StringSerializer
-          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-          acks: all
-          retries: 2147483647
-          properties:
-            security.protocol: SASL_SSL
-            sasl.mechanism: PLAIN
-            sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="$ConnectionString" password="Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA=";
-            client.dns.lookup: use_all_dns_ips
-            session.timeout.ms: 30000
-            max.in.flight.requests.per.connection: 5
-            enable.idempotence: true
+      
+      # Azure Event Hubs Configuration
+      azure:
+        eventhubs:
+          connection-string: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA="
         
       datasource:
         url: jdbc:postgresql://postgres-service:5432/userdb

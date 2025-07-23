@@ -26,6 +26,9 @@ public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers:kafka:9092}")
     private String bootstrapServers;
+    
+    @Value("${azure.eventhubs.connection-string:}")
+    private String eventHubsConnectionString;
 
     @Bean
     public ObjectMapper objectMapper() {
@@ -48,7 +51,7 @@ public class KafkaConfig {
         configProps.put("sasl.jaas.config", 
             "org.apache.kafka.common.security.plain.PlainLoginModule required " +
             "username=\"$ConnectionString\" " +
-            "password=\"Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA=\";");
+            "password=\"" + eventHubsConnectionString + "\";");
         configProps.put("client.dns.lookup", "use_all_dns_ips");
         configProps.put("acks", "all");
         configProps.put("retries", 2147483647);
