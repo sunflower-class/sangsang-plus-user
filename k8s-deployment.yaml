@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sangsang-plus-user
+  labels:
+    app: sangsang-plus-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sangsang-plus-user
+  template:
+    metadata:
+      labels:
+        app: sangsang-plus-user
+    spec:
+      containers:
+      - name: user-service
+        image: buildingbite/sangsangplus-user:latest
+        ports:
+        - containerPort: 8081
+        env:
+        # Database 설정
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/userdb"
+        
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: db-username
+        
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: db-password
+        
+        # Encryption Key
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: encryption-key
+        
+        # Gateway URL (서비스 간 통신용)
+        - name: GATEWAY_SERVICE_URL
+          value: "http://sangsang-plus-gateway.default.svc.cluster.local"
+        
+        # 추가 환경변수 (필요시)
+        # - name: SPRING_PROFILES_ACTIVE
+        #   value: "production"
+        
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sangsang-plus-user
+spec:
+  selector:
+    app: sangsang-plus-user
+  ports:
+    - protocol: TCP
+      port: 80          # 외부에서 접근할 포트
+      targetPort: 8081  # 컨테이너 내부 포트
+  type: ClusterIP       # 내부 서비스이므로 ClusterIP 사용
+---
+# Secret 생성은 별도 명령어로 처리 (민감정보 보안)
+# kubectl create secret generic user-service-secrets \
+#   --from-literal=db-username='your-db-username' \
+#   --from-literal=db-password='your-db-password' \
+#   --from-literal=encryption-key='your-encryption-key'
