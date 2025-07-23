@@ -46,17 +46,22 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         
         // Azure Event Hubs specific configuration
-        configProps.put("security.protocol", "SASL_SSL");
-        configProps.put("sasl.mechanism", "PLAIN");
-        configProps.put("sasl.jaas.config", 
-            "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-            "username=\"$ConnectionString\" " +
-            "password=\"" + eventHubsConnectionString + "\";");
-        configProps.put("client.dns.lookup", "use_all_dns_ips");
-        configProps.put("acks", "all");
-        configProps.put("retries", 2147483647);
-        configProps.put("max.in.flight.requests.per.connection", 5);
-        configProps.put("enable.idempotence", true);
+        if (!eventHubsConnectionString.isEmpty()) {
+            configProps.put("security.protocol", "SASL_SSL");
+            configProps.put("sasl.mechanism", "PLAIN");
+            configProps.put("sasl.jaas.config", 
+                "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                "username=\"$ConnectionString\" " +
+                "password=\"" + eventHubsConnectionString + "\";");
+            configProps.put("client.dns.lookup", "use_all_dns_ips");
+            configProps.put("acks", "all");
+            configProps.put("retries", 3);
+            configProps.put("max.in.flight.requests.per.connection", 5);
+            configProps.put("enable.idempotence", true);
+            configProps.put("request.timeout.ms", 30000);
+            configProps.put("delivery.timeout.ms", 120000);
+            configProps.put("linger.ms", 5);
+        }
         
         configProps.put(JsonSerializer.TYPE_MAPPINGS, 
             "userDeleted:com.example.userservice.dto.event.UserDeletedEvent," +
@@ -64,7 +69,11 @@ public class KafkaConfig {
             "userUpdated:com.example.userservice.dto.event.UserUpdatedEvent");
         
         logger.info("Kafka Producer configured with bootstrap servers: {}", bootstrapServers);
-        logger.info("Azure Event Hubs configuration applied");
+        if (!eventHubsConnectionString.isEmpty()) {
+            logger.info("Azure Event Hubs configuration applied with connection string");
+        } else {
+            logger.warn("Azure Event Hubs connection string is empty, using standard Kafka configuration");
+        }
         
         return new DefaultKafkaProducerFactory<>(configProps);
     }

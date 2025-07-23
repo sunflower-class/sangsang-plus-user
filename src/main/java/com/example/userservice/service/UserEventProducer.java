@@ -40,8 +40,8 @@ public class UserEventProducer {
 
     private void publishEvent(BaseUserEvent event, String eventType) {
         try {
-            logger.info("Publishing {} event for user ID: {}, email: {}", 
-                eventType, event.getUserId(), event.getEmail());
+            logger.info("Publishing {} event for user ID: {}, email: {} to topic: {}", 
+                eventType, event.getUserId(), event.getEmail(), TOPIC);
 
             ListenableFuture<SendResult<String, BaseUserEvent>> future = 
                 kafkaTemplate.send(TOPIC, event.getUserId().toString(), event);
@@ -49,20 +49,30 @@ public class UserEventProducer {
             future.addCallback(new ListenableFutureCallback<SendResult<String, BaseUserEvent>>() {
                 @Override
                 public void onSuccess(SendResult<String, BaseUserEvent> result) {
-                    logger.info("Successfully published {} event for user ID: {} with offset: {}", 
-                        eventType, event.getUserId(), result.getRecordMetadata().offset());
+                    logger.info("Successfully published {} event for user ID: {} to partition: {} with offset: {}", 
+                        eventType, event.getUserId(), 
+                        result.getRecordMetadata().partition(),
+                        result.getRecordMetadata().offset());
                 }
 
                 @Override
                 public void onFailure(Throwable ex) {
-                    logger.error("Failed to publish {} event for user ID: {}", 
-                        eventType, event.getUserId(), ex);
+                    logger.error("Failed to publish {} event for user ID: {} to topic: {}", 
+                        eventType, event.getUserId(), TOPIC, ex);
+                    
+                    // Log specific error details for Azure Event Hubs troubleshooting
+                    if (ex.getCause() != null) {
+                        logger.error("Root cause: {}", ex.getCause().getMessage());
+                    }
                 }
             });
 
         } catch (Exception e) {
-            logger.error("Error publishing {} event for user ID: {}", 
-                eventType, event.getUserId(), e);
+            logger.error("Error publishing {} event for user ID: {} to topic: {}", 
+                eventType, event.getUserId(), TOPIC, e);
+            
+            // Log configuration info for debugging
+            logger.debug("Current Kafka template default topic: {}", kafkaTemplate.getDefaultTopic());
         }
     }
 }

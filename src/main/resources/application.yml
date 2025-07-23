@@ -25,7 +25,11 @@ spring:
         format_sql: true
     show-sql: true
 
-  # kafka Configuration
+  # kafka Configuration (local development)
   kafka:
     bootstrap-servers: kafka:9092
-      
+  
+  # Azure Event Hubs Configuration (override in k8s)
+  azure:
+    eventhubs:
+      connection-string: ""
