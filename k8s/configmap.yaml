@@ -19,7 +19,7 @@ data:
         
       # kafka Configuration
       kafka:
-        bootstrap-servers: kafka-service:9092
+        bootstrap-servers: kafka-service.default.svc.cluster.local:9092
         
       datasource:
         url: jdbc:postgresql://postgres-service:5432/userdb

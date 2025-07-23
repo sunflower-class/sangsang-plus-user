@@ -7,6 +7,8 @@ import com.example.userservice.dto.response.UserProfileResponse;
 import com.example.userservice.dto.response.PublicUserResponse;
 import com.example.userservice.dto.response.AdminUserResponse;
 import com.example.userservice.service.UserService;
+import com.example.userservice.service.UserEventProducer;
+import com.example.userservice.model.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -36,6 +38,9 @@ public class UserController {
     @Autowired
     private UserService userService;
     
+    @Autowired
+    private UserEventProducer userEventProducer;
+    
     @GetMapping("/users/health")
     @Operation(summary = "Health Check", description = "Check User service health status")
     @ApiResponse(responseCode = "200", description = "Service is healthy")
@@ -46,6 +51,46 @@ public class UserController {
         logger.info("X-Forwarded-For: {}", request.getHeader("X-Forwarded-For"));
         logger.info("X-Real-IP: {}", request.getHeader("X-Real-IP"));
         return ResponseEntity.ok(Map.of("status", "OK", "service", "User Service"));
+    }
+    
+    @PostMapping("/users/test-event")
+    @Operation(summary = "Test Event Publishing", description = "Test endpoint for publishing user events")
+    @ApiResponse(responseCode = "200", description = "Event published successfully")
+    public ResponseEntity<Map<String, String>> testEvent(@RequestBody Map<String, String> request) {
+        try {
+            String eventType = request.getOrDefault("eventType", "USER_UPDATED");
+            Long userId = Long.parseLong(request.getOrDefault("userId", "1"));
+            
+            // Create a dummy user for testing
+            User testUser = new User();
+            testUser.setId(userId);
+            testUser.setEmail(request.getOrDefault("email", "test@example.com"));
+            testUser.setName(request.getOrDefault("name", "Test User"));
+            
+            // Publish event based on type
+            switch (eventType) {
+                case "USER_DELETED":
+                    userEventProducer.publishUserDeletedEvent(testUser);
+                    break;
+                case "USER_SUSPENDED":
+                    userEventProducer.publishUserSuspendedEvent(testUser);
+                    break;
+                case "USER_UPDATED":
+                default:
+                    userEventProducer.publishUserUpdatedEvent(testUser);
+                    break;
+            }
+            
+            logger.info("Test event published: {} for user ID: {}", eventType, userId);
+            return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS", 
+                "eventType", eventType,
+                "userId", userId.toString()
+            ));
+        } catch (Exception e) {
+            logger.error("Error publishing test event", e);
+            return ResponseEntity.ok(Map.of("status", "ERROR", "message", e.getMessage()));
+        }
     }
     
     @GetMapping("/users")
