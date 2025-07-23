@@ -153,4 +153,42 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+    
+    @PutMapping("/users/{id}/suspend")
+    @Operation(summary = "Suspend User", description = "Suspend a user account")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User suspended successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<?> suspendUser(@Parameter(description = "User ID") @PathVariable Long id) {
+        try {
+            Optional<UserDto> user = userService.suspendUser(id);
+            if (user.isPresent()) {
+                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
+                return ResponseEntity.ok(profile);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/users/{id}/activate")
+    @Operation(summary = "Activate User", description = "Activate a suspended user account")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User activated successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<?> activateUser(@Parameter(description = "User ID") @PathVariable Long id) {
+        try {
+            Optional<UserDto> user = userService.activateUser(id);
+            if (user.isPresent()) {
+                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
+                return ResponseEntity.ok(profile);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

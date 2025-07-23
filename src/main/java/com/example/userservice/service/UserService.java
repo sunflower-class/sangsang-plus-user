@@ -25,6 +25,9 @@ public class UserService {
     @Autowired
     private AES256GCMUtilProvider aesUtil;
     
+    @Autowired
+    private UserEventProducer userEventProducer;
+    
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
     
     public Optional<User> getUserEntityById(Long id) {
@@ -71,13 +74,23 @@ public class UserService {
                 user.setEmail(email);
             }
             User saved = userRepository.save(user);
+            
+            // Publish user updated event
+            userEventProducer.publishUserUpdatedEvent(saved);
+            
             return Optional.of(new UserDto(saved));
         }
         return Optional.empty();
     }
     
     public boolean deleteUser(Long id) {
-        if (userRepository.existsById(id)) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            // Publish user deleted event before deletion
+            userEventProducer.publishUserDeletedEvent(user);
+            
             userRepository.deleteById(id);
             return true;
         }
@@ -110,6 +123,10 @@ public class UserService {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            // Check if user is suspended
+            if (!user.getActive()) {
+                throw new RuntimeException("User account is suspended");
+            }
             if (passwordEncoder.matches(password, user.getPassword())) {
                 // Update login info
                 user.setLastLoginAt(LocalDateTime.now());
@@ -117,6 +134,32 @@ public class UserService {
                 userRepository.save(user);
                 return Optional.of(new UserDto(user));
             }
+        }
+        return Optional.empty();
+    }
+    
+    public Optional<UserDto> suspendUser(Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setActive(false);
+            User saved = userRepository.save(user);
+            
+            // Publish user suspended event
+            userEventProducer.publishUserSuspendedEvent(saved);
+            
+            return Optional.of(new UserDto(saved));
+        }
+        return Optional.empty();
+    }
+    
+    public Optional<UserDto> activateUser(Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setActive(true);
+            User saved = userRepository.save(user);
+            return Optional.of(new UserDto(saved));
         }
         return Optional.empty();
     }
