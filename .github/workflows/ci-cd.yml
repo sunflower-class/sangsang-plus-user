@@ -108,7 +108,7 @@ jobs:
     - name: Run health check
       run: |
         # Wait for deployment to be ready
-        kubectl wait --for=condition=available --timeout=300s deployment/sangsang-plus-user
+        kubectl wait --for=condition=available --timeout=300s deployment/user-service -n user-service
         
         # Get gateway service endpoint
         SERVICE_URL=$(kubectl get service sangsang-plus-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
