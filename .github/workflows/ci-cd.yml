@@ -90,22 +90,27 @@ jobs:
         mkdir -p $HOME/.kube
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
 
-    - name: Deploy to default namespace
+    - name: Deploy to user-service namespace
       run: |
-        # Update image tag
+        # Update image tag in deployment.yaml
         SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
         sed -i "s|image: buildingbite/sangsangplus-user:.*|image: buildingbite/sangsangplus-user:main-${SHORT_SHA}|g" k8s-deployment.yaml
         
         # Apply to default namespace
-        kubectl apply -f k8s-deployment.yaml
-        kubectl rollout status deployment/sangsang-plus-user --timeout=600s
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/configmap.yaml
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+
+        # Wait for rollout
+        kubectl rollout status deployment/user-service -n user-service --timeout=600s
 
     - name: Run health check
       run: |
         # Wait for deployment to be ready
         kubectl wait --for=condition=available --timeout=300s deployment/sangsang-plus-user
         
-        # Get service endpoint
+        # Get gateway service endpoint
         SERVICE_URL=$(kubectl get service sangsang-plus-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
         
         # Health check through gateway
