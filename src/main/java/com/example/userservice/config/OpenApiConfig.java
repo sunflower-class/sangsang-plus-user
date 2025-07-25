@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
         description = "Pure CRUD operations for User management in MSA Architecture"
     ),
     servers = {
-        @Server(url = "http://localhost:8082", description = "User Service"),
+        @Server(url = "http://localhost:8081", description = "User Service"),
         @Server(url = "http://localhost:8081/api/users", description = "Via Gateway")
     }
 )
