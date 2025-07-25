@@ -62,16 +62,15 @@ public class UserService {
         return new UserDto(saved);
     }
     
-    public Optional<UserDto> updateUser(Long id, String name, String email) {
+    public Optional<UserDto> updateUser(Long id, String name, String password) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            if (name != null) user.setName(name);
-            if (email != null && !email.equals(user.getEmail())) {
-                if (userRepository.existsByEmail(email)) {
-                    throw new RuntimeException("Email already exists");
-                }
-                user.setEmail(email);
+            if (name != null) {
+                user.setName(name);
+            }
+            if (password != null && !password.isEmpty()) {
+                user.setPassword(passwordEncoder.encode(password));
             }
             User saved = userRepository.save(user);
             

@@ -157,7 +157,7 @@ public class UserController {
     @PutMapping("/users/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         try {
-            Optional<UserDto> user = userService.updateUser(id, request.getName(), request.getEmail());
+            Optional<UserDto> user = userService.updateUser(id, request.getName(), request.getPassword());
             if (user.isPresent()) {
                 UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
                 return ResponseEntity.ok(profile);
