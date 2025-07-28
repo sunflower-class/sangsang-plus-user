@@ -36,9 +36,33 @@ public class SecurityConfig {
             // 요청 로깅 필터 추가
             .addFilterBefore(new RequestLoggingFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
             
-            // 모든 요청 허용 - 인증은 Gateway에서 처리
+            // 엔드포인트별 권한 설정
             .authorizeHttpRequests(authz -> authz
-                .anyRequest().permitAll()
+                // Health check - 모두 허용
+                .antMatchers(HttpMethod.GET, "/api/users/health").permitAll()
+                
+                // 인증 관련 - 모두 허용
+                .antMatchers(HttpMethod.POST, "/api/users").permitAll()  // 회원가입
+                .antMatchers(HttpMethod.POST, "/api/users/authenticate").permitAll()  // 로그인
+                .antMatchers(HttpMethod.POST, "/api/users/oauth2").permitAll()  // OAuth2 로그인
+                .antMatchers(HttpMethod.PUT, "/api/users/verify-email").permitAll()  // 이메일 인증
+                
+                // 사용자 조회 - 인증 필요
+                .antMatchers(HttpMethod.GET, "/api/users").authenticated()  // 전체 사용자 목록 (ADMIN 권한 필요할 수도)
+                .antMatchers(HttpMethod.GET, "/api/users/*").authenticated()  // 특정 사용자 조회
+                .antMatchers(HttpMethod.GET, "/api/users/email/*").authenticated()  // 이메일로 사용자 조회
+                
+                // 사용자 수정/삭제 - 인증 필요 (본인 또는 ADMIN)
+                .antMatchers(HttpMethod.PUT, "/api/users/*").authenticated()
+                .antMatchers(HttpMethod.DELETE, "/api/users/*").authenticated()
+                
+                // 관리자 기능 - ADMIN 권한 필요
+                .antMatchers(HttpMethod.PUT, "/api/users/*/suspend").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PUT, "/api/users/*/activate").hasRole("ADMIN")
+                .antMatchers(HttpMethod.POST, "/api/users/test-event").hasRole("ADMIN")  // 테스트용 엔드포인트
+                
+                // 기타 모든 요청은 인증 필요
+                .anyRequest().authenticated()
             );
         
         return http.build();

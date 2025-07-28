@@ -1,18 +1,17 @@
 # User Service - Spring Boot REST API
 
-A RESTful user management service with Google OAuth2 authentication, built with Spring Boot and deployed on Azure Kubernetes Service.
+A RESTful user management service built with Spring Boot and deployed on Azure Kubernetes Service. This service handles user authentication, profile management, and integrates with external authentication providers through an API Gateway.
 
 ## Features
 
-- 🔐 Google OAuth2 Authentication
 - 👤 User Management (CRUD operations)  
-- 🐘 PostgreSQL Database
+- 🔐 OAuth2 Provider Support (Google)
+- 🐘 Azure PostgreSQL Database
 - 🚀 Kubernetes Deployment
-- 🔒 JWT Token Support (HttpOnly Cookies)
-- ☁️ Azure Cloud Integration
-- 🛡️ CSRF Protection
 - 🔑 Role-based Access Control
-- 📱 Environment-based Configuration (.env)
+- 📧 Email Verification Workflow
+- 🎯 Event-Driven Architecture (Kafka/Azure Event Hubs)
+- 🛡️ Spring Security Integration
 
 ## Prerequisites
 
@@ -24,33 +23,22 @@ A RESTful user management service with Google OAuth2 authentication, built with 
 
 ## Environment Variables
 
-Create a `.env` file or set these environment variables:
+The service requires the following environment variables (managed via Kubernetes Secrets):
 
 ```bash
-# Database Configuration
-DATABASE_URL=jdbc:postgresql://localhost:5432/userdb
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=your-db-password
+# Database Configuration (Azure PostgreSQL)
+DATABASE_URL=jdbc:postgresql://your-server.postgres.database.azure.com:5432/user_db?sslmode=require
+DATABASE_USERNAME=your-username
+DATABASE_PASSWORD=your-password
 
-# Google OAuth2 Configuration
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-OAUTH_REDIRECT_URI=https://your-domain.com/login/oauth2/code/google
+# Encryption Key (for AES-256)
+ENCRYPTION_KEY=your-base64-encoded-key
 
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-change-this
-JWT_ACCESS_EXPIRATION=3600000
-JWT_REFRESH_EXPIRATION=2592000000
+# Azure Event Hubs Configuration
+AZURE_EVENTHUBS_CONNECTION_STRING=your-connection-string
 ```
 
-## Google OAuth2 Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Download `client-secret.json` and place it in `src/main/resources/`
-6. Add your domain to authorized redirect URIs
+**Note**: OAuth2 authentication is handled by the API Gateway, not directly by this service.
 
 ## Local Development
 
@@ -71,17 +59,58 @@ mvn spring-boot:run
 
 ## API Endpoints
 
-### Health Check
-- `GET /api/health` - Service health status
+### Public Endpoints (No Authentication Required)
+- `GET /api/users/health` - Service health status
+- `POST /api/users` - Create new user (Registration)
+- `POST /api/users/authenticate` - Authenticate user credentials (Login)
+- `POST /api/users/oauth2` - Create/update OAuth2 user (called by Gateway after OAuth2 flow)
+- `PUT /api/users/verify-email` - Mark user's email as verified (called by Gateway after KeyCloak verification)
 
-### User Management
+### Authenticated Endpoints (Requires Valid JWT from Gateway)
 - `GET /api/users` - List all users with pagination
 - `GET /api/users/{id}` - Get user by ID
 - `GET /api/users/email/{email}` - Get user by email
-- `POST /api/users` - Create new user
-- `PUT /api/users/{id}` - Update user
-- `DELETE /api/users/{id}` - Delete user
-- `POST /api/users/authenticate` - Authenticate user credentials
+- `PUT /api/users/{id}` - Update user profile
+- `DELETE /api/users/{id}` - Delete user account
+
+### Admin-Only Endpoints (Requires ADMIN role)
+- `PUT /api/users/{id}/suspend` - Suspend a user account
+- `PUT /api/users/{id}/activate` - Activate a suspended user account
+- `POST /api/users/test-event` - Test event publishing (for debugging)
+
+### Service Integration Endpoints
+
+#### OAuth2 User Creation/Login
+```bash
+POST /api/users/oauth2
+Content-Type: application/json
+
+{
+  "email": "user@gmail.com",
+  "name": "User Name",
+  "provider": "GOOGLE"
+}
+```
+**Response**: User profile data
+**Note**: Called by Gateway after successful OAuth2 authentication. Creates new user or logs in existing user.
+
+#### Email Verification
+```bash
+PUT /api/users/verify-email
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+```
+**Response**: 
+```json
+{
+  "message": "Email verified successfully",
+  "email": "user@example.com"
+}
+```
+**Note**: Called by Gateway after KeyCloak email verification success.
 
 ## API Testing for Gateway Integration
 
@@ -206,6 +235,29 @@ Content-Type: application/json
 }
 ```
 
+### Create OAuth2 User
+```bash
+POST http://user-service.user-service:80/api/users/oauth2
+Content-Type: application/json
+
+{
+  "email": "oauth.user@gmail.com",
+  "name": "OAuth User",
+  "provider": "GOOGLE"
+}
+```
+**Response:**
+```json
+{
+  "id": 3,
+  "email": "oauth.user@gmail.com",
+  "name": "OAuth User",
+  "role": "USER",
+  "provider": "GOOGLE",
+  "profilePicture": null
+}
+```
+
 ### Gateway Integration Example
 For API Gateway routing configuration:
 ```yaml
@@ -236,33 +288,57 @@ docker-compose up
 
 ### Prerequisites
 
-- Kubernetes cluster (AKS, EKS, GKE, or local minikube)
-- kubectl configured
-- Docker image built: `buildingbite/sangsangplus-user:latest`
-- Kafka service deployed (as `kafka-service` in the cluster)
+- Kubernetes cluster (AKS recommended)
+- kubectl configured with proper permissions
+- Docker image: `buildingbite/sangsangplus-user:latest`  
+- Azure PostgreSQL server already provisioned
+- Azure Event Hubs connection string
+
+### Required Secrets
+
+Before deployment, create the following Kubernetes secrets:
+
+```bash
+# Azure PostgreSQL connection
+kubectl create secret generic azure-postgres-secret \
+  --from-literal=DATABASE_URL="jdbc:postgresql://your-server.postgres.database.azure.com:5432/user_db?sslmode=require" \
+  --from-literal=DATABASE_USERNAME="your-username" \
+  --from-literal=DATABASE_PASSWORD="your-password" \
+  -n user-service
+
+# Encryption key for AES-256
+kubectl create secret generic encryption-secret \
+  --from-literal=encryption.key="your-base64-encoded-key" \
+  -n user-service
+```
 
 ### Deployment Steps
 
-Deploy in the following order:
-
 1. **Create Namespace**
    ```bash
-   kubectl apply -f k8s/namespace.yaml
+   kubectl create namespace user-service
    ```
 
-2. **Deploy PostgreSQL Database**
+2. **Setup Azure PostgreSQL Database**
    ```bash
-   kubectl apply -f k8s/postgres.yaml
+   # Run the setup script to create database
+   ./scripts/setup-azure-db.sh
    ```
 
-3. **Create ConfigMap** (Application Configuration)
+3. **Deploy Secrets** (if not created above)
+   ```bash
+   kubectl apply -f k8s/azure-postgres-secret.yaml
+   kubectl apply -f k8s/encryption-secret.yaml
+   ```
+
+4. **Create ConfigMap**
    ```bash
    kubectl apply -f k8s/configmap.yaml
    ```
 
-4. **Deploy User Service**
+5. **Deploy User Service**
    ```bash
-   kubectl apply -f k8s/deployment.yaml
+   kubectl apply -f k8s-deployment.yaml
    ```
 
 5. **Create Service** (ClusterIP for internal access)
@@ -286,15 +362,40 @@ kubectl logs -f deployment/user-service -n user-service
 
 The User Service is deployed as ClusterIP and accessible within the cluster at:
 ```
-http://user-service.user-service:80
+http://user-service.user-service.svc.cluster.local:8081
 ```
 
-For API Gateway integration (from default namespace):
+For API Gateway integration:
 ```yaml
 # Gateway environment variable
 - name: USER_SERVICE_URL
-  value: "http://user-service.user-service:80"
+  value: "http://user-service.user-service.svc.cluster.local:8081"
 ```
+
+### Cross-Cluster Deployment Considerations
+
+When deploying in different clusters or environments:
+
+1. **Database Configuration**
+   - Update `DATABASE_URL` in secrets to point to your Azure PostgreSQL server
+   - Ensure database `user_db` exists on your PostgreSQL server
+   - Verify SSL connection requirements (`sslmode=require`)
+
+2. **Network Connectivity**
+   - Ensure Kubernetes cluster can reach Azure PostgreSQL (firewall rules)
+   - For private endpoints, configure VNet peering or private DNS zones
+
+3. **Event Hubs Configuration**
+   - Update `AZURE_EVENTHUBS_CONNECTION_STRING` in ConfigMap
+   - Ensure Event Hubs topic exists for user events
+
+4. **Image Registry Access**
+   - Ensure cluster can pull from `buildingbite/sangsangplus-user:latest`
+   - Or push image to your own registry and update deployment
+
+5. **Service Discovery**
+   - Update Gateway service URL to match your namespace/cluster FQDN
+   - Consider using Ingress for external access if needed
 
 ### Verify Deployment
 
@@ -330,6 +431,32 @@ kubectl create secret generic user-service-secrets \
 5. Set up monitoring and logging
 
 ## Security Notes
+
+### Authentication & Authorization
+
+The User Service implements endpoint-level security with the following rules:
+
+**Public Endpoints** (No authentication required):
+- Health check
+- User registration (`POST /api/users`)
+- User login (`POST /api/users/authenticate`)
+- OAuth2 user creation (`POST /api/users/oauth2`)
+
+**Authenticated Endpoints** (Requires valid JWT token):
+- User profile operations (GET, PUT, DELETE)
+- User search operations
+
+**Admin-Only Endpoints** (Requires ADMIN role):
+- User suspension/activation
+- Test event publishing
+
+**Architecture Note**: This service operates in a microservices architecture where:
+- **API Gateway** handles OAuth2 authentication, JWT validation, and request routing
+- **User Service** manages user data and provides endpoints for Gateway integration
+- **KeyCloak** (external) handles email verification workflow
+- Authentication flow: Client → Gateway → User Service
+
+### Security Best Practices
 
 ⚠️ **Important**: Never commit sensitive information to Git:
 - `client-secret.json` files
