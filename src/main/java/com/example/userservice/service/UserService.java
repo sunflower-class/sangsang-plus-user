@@ -97,13 +97,23 @@ public class UserService {
     }
     
     public UserDto createOAuth2User(String email, String name, Provider provider) {
-        if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email already exists");
+        // Check if user already exists (login existing user)
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            // Update login information
+            user.setLastLoginAt(java.time.LocalDateTime.now());
+            user.setLoginCount(user.getLoginCount() + 1);
+            User saved = userRepository.save(user);
+            return new UserDto(saved);
         }
         
+        // Create new OAuth2 user
         User user = new User(email, name, null); // OAuth2 users don't have password
         user.setProvider(provider);
-        user.setEmailVerified(true); // OAuth2 users are email verified
+        user.setEmailVerified(false); // Email verification handled separately
+        user.setLastLoginAt(java.time.LocalDateTime.now());
+        user.setLoginCount(1);
         User saved = userRepository.save(user);
         return new UserDto(saved);
     }
@@ -157,6 +167,17 @@ public class UserService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             user.setActive(true);
+            User saved = userRepository.save(user);
+            return Optional.of(new UserDto(saved));
+        }
+        return Optional.empty();
+    }
+    
+    public Optional<UserDto> verifyEmail(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setEmailVerified(true);
             User saved = userRepository.save(user);
             return Optional.of(new UserDto(saved));
         }

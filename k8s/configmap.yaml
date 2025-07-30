@@ -27,10 +27,10 @@ data:
           connection-string: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA="
         
       datasource:
-        url: jdbc:postgresql://postgres-service:5432/userdb
+        url: ${DATABASE_URL}
         driver-class-name: org.postgresql.Driver
-        username: postgres
-        password: ${DATABASE_PASSWORD:postgres}
+        username: ${DATABASE_USERNAME}
+        password: ${DATABASE_PASSWORD}
       jpa:
         hibernate:
           ddl-auto: update

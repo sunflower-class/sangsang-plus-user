@@ -2,7 +2,9 @@ package com.example.userservice.controller;
 
 import com.example.userservice.dto.UserDto;
 import com.example.userservice.dto.request.CreateUserRequest;
+import com.example.userservice.dto.request.CreateOAuth2UserRequest;
 import com.example.userservice.dto.request.UpdateUserRequest;
+import com.example.userservice.dto.request.VerifyEmailRequest;
 import com.example.userservice.dto.response.UserProfileResponse;
 import com.example.userservice.dto.response.PublicUserResponse;
 import com.example.userservice.dto.response.AdminUserResponse;
@@ -106,7 +108,10 @@ public class UserController {
         logger.info("Query String: {}", request.getQueryString());
         List<UserDto> users = userService.getAllUsers(page, size);
         List<PublicUserResponse> publicUsers = users.stream()
-                .map(user -> new PublicUserResponse(userService.getUserEntityById(user.getId()).get()))
+                .map(user -> userService.getUserEntityById(user.getId())
+                        .map(PublicUserResponse::new)
+                        .orElse(null))
+                .filter(response -> response != null)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(publicUsers);
     }
@@ -147,8 +152,12 @@ public class UserController {
         logger.info("Request Body - Email: {}, Name: {}", request.getEmail(), request.getName());
         try {
             UserDto user = userService.createUser(request.getEmail(), request.getName(), request.getPassword());
-            UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.getId()).get());
-            return ResponseEntity.ok(profile);
+            Optional<User> userEntity = userService.getUserEntityById(user.getId());
+            if (userEntity.isPresent()) {
+                UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                return ResponseEntity.ok(profile);
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to retrieve created user"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -159,8 +168,11 @@ public class UserController {
         try {
             Optional<UserDto> user = userService.updateUser(id, request.getName(), request.getPassword());
             if (user.isPresent()) {
-                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
-                return ResponseEntity.ok(profile);
+                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
+                if (userEntity.isPresent()) {
+                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                    return ResponseEntity.ok(profile);
+                }
             }
             return ResponseEntity.notFound().build();
         } catch (RuntimeException e) {
@@ -190,10 +202,33 @@ public class UserController {
             
             Optional<UserDto> user = userService.authenticateUser(email, password);
             if (user.isPresent()) {
-                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
-                return ResponseEntity.ok(profile);
+                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
+                if (userEntity.isPresent()) {
+                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                    return ResponseEntity.ok(profile);
+                }
             }
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid credentials"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/users/oauth2")
+    @Operation(summary = "Create OAuth2 User", description = "Create or update user from OAuth2 provider")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "OAuth2 user created/updated successfully"),
+        @ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    public ResponseEntity<?> createOAuth2User(@Valid @RequestBody CreateOAuth2UserRequest request) {
+        try {
+            UserDto userDto = userService.createOAuth2User(request.getEmail(), request.getName(), request.getProvider());
+            Optional<User> userEntity = userService.getUserEntityById(userDto.getId());
+            if (userEntity.isPresent()) {
+                UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                return ResponseEntity.ok(profile);
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to retrieve OAuth2 user"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -209,8 +244,11 @@ public class UserController {
         try {
             Optional<UserDto> user = userService.suspendUser(id);
             if (user.isPresent()) {
-                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
-                return ResponseEntity.ok(profile);
+                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
+                if (userEntity.isPresent()) {
+                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                    return ResponseEntity.ok(profile);
+                }
             }
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -228,8 +266,32 @@ public class UserController {
         try {
             Optional<UserDto> user = userService.activateUser(id);
             if (user.isPresent()) {
-                UserProfileResponse profile = new UserProfileResponse(userService.getUserEntityById(user.get().getId()).get());
-                return ResponseEntity.ok(profile);
+                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
+                if (userEntity.isPresent()) {
+                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                    return ResponseEntity.ok(profile);
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+    
+    @PutMapping("/users/verify-email")
+    @Operation(summary = "Verify Email", description = "Mark user's email as verified after KeyCloak confirmation")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Email verified successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        try {
+            Optional<UserDto> user = userService.verifyEmail(request.getEmail());
+            if (user.isPresent()) {
+                return ResponseEntity.ok(Map.of(
+                    "message", "Email verified successfully",
+                    "email", request.getEmail()
+                ));
             }
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
