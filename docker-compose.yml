@@ -45,6 +45,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_AXON_AXONSERVER_SERVERS: axonserver:8124
+      encryption.key: ${ENCRYPTION_KEY}
     networks:
       - sangsang-plus
     restart: unless-stopped
