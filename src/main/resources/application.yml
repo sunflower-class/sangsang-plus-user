@@ -5,10 +5,6 @@ server:
 spring:
   application:
     name: user-service
-  
-  # encryption Config: 64 Hex Key(32bytes) for AES-256
-  encryption:
-    key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     
   # Database Configuration
   datasource:
@@ -25,11 +21,7 @@ spring:
         format_sql: true
     show-sql: true
 
-  # kafka Configuration (local development)
-  kafka:
-    bootstrap-servers: kafka:9092
-  
-  # Azure Event Hubs Configuration (override in k8s)
+  # Azure Event Hubs Configuration
   azure:
     eventhubs:
-      connection-string: ""
+      connection-string: ${AZURE_EVENTHUBS_CONNECTION_STRING:""}

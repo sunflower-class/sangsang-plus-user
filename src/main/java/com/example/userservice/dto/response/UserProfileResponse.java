@@ -1,15 +1,12 @@
 package com.example.userservice.dto.response;
 
 import com.example.userservice.model.User;
-import java.time.LocalDateTime;
+import java.util.UUID;
 
 public class UserProfileResponse {
-    private Long id;
+    private UUID id;
     private String email;
     private String name;
-    private String role;
-    private Boolean emailVerified;
-    private LocalDateTime createdAt;
     
     public UserProfileResponse() {}
     
@@ -17,16 +14,13 @@ public class UserProfileResponse {
         this.id = user.getId();
         this.email = user.getEmail();
         this.name = user.getName();
-        this.role = user.getRole().toString();
-        this.emailVerified = user.getEmailVerified();
-        this.createdAt = user.getCreatedAt();
     }
     
-    public Long getId() { 
+    public UUID getId() { 
         return id; 
     }
     
-    public void setId(Long id) { 
+    public void setId(UUID id) { 
         this.id = id; 
     }
     
@@ -44,29 +38,5 @@ public class UserProfileResponse {
     
     public void setName(String name) { 
         this.name = name; 
-    }
-    
-    public String getRole() { 
-        return role; 
-    }
-    
-    public void setRole(String role) { 
-        this.role = role; 
-    }
-    
-    public Boolean getEmailVerified() { 
-        return emailVerified; 
-    }
-    
-    public void setEmailVerified(Boolean emailVerified) { 
-        this.emailVerified = emailVerified; 
-    }
-    
-    public LocalDateTime getCreatedAt() { 
-        return createdAt; 
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) { 
-        this.createdAt = createdAt; 
     }
 }

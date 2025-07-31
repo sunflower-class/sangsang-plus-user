@@ -1,16 +1,18 @@
-package com.example.userservice.dto.event;
+package com.example.userservice.event.model;
 
-public class UserUpdatedEvent extends BaseUserEvent {
+import java.util.UUID;
+
+public class UserCreatedEvent extends BaseUserEvent {
     
-    public static final String EVENT_TYPE = "USER_UPDATED";
+    public static final String EVENT_TYPE = "USER_CREATED";
     
     private String name;
 
-    public UserUpdatedEvent() {
+    public UserCreatedEvent() {
         super();
     }
 
-    public UserUpdatedEvent(Long userId, String email, String name) {
+    public UserCreatedEvent(UUID userId, String email, String name) {
         super(userId, email);
         this.name = name;
     }

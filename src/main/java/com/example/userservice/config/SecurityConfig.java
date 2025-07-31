@@ -1,5 +1,6 @@
 package com.example.userservice.config;
 
+import com.example.userservice.security.HeaderBasedAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -7,6 +8,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,13 +35,20 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             
+            // 헤더 기반 인증 필터 추가
+            .addFilterBefore(new HeaderBasedAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            
             // 요청 로깅 필터 추가
-            .addFilterBefore(new RequestLoggingFilter(), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(new RequestLoggingFilter(), HeaderBasedAuthenticationFilter.class)
             
             // 엔드포인트별 권한 설정
             .authorizeHttpRequests(authz -> authz
                 // Health check - 모두 허용
                 .antMatchers(HttpMethod.GET, "/api/users/health").permitAll()
+                .antMatchers(HttpMethod.GET, "/api/health").permitAll()
+                
+                // Gateway internal endpoints - 모두 허용
+                .antMatchers(HttpMethod.GET, "/api/users/gateway/lookup/*").permitAll()
                 
                 // 인증 관련 - 모두 허용
                 .antMatchers(HttpMethod.POST, "/api/users").permitAll()  // 회원가입

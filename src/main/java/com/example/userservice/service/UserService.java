@@ -1,19 +1,17 @@
 package com.example.userservice.service;
 
 import com.example.userservice.model.User;
-import com.example.userservice.model.Provider;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.dto.UserDto;
-import com.example.userservice.security.AES256GCMUtilProvider;
+import com.example.userservice.event.publisher.UserEventProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,14 +21,9 @@ public class UserService {
     private UserRepository userRepository;
 
     @Autowired
-    private AES256GCMUtilProvider aesUtil;
-    
-    @Autowired
     private UserEventProducer userEventProducer;
     
-    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
-    
-    public Optional<User> getUserEntityById(Long id) {
+    public Optional<User> getUserEntityById(UUID id) {
         return userRepository.findById(id);
     }
     
@@ -42,7 +35,7 @@ public class UserService {
                 .collect(Collectors.toList());
     }
     
-    public Optional<UserDto> getUserById(Long id) {
+    public Optional<UserDto> getUserById(UUID id) {
         return userRepository.findById(id)
                 .map(UserDto::new);
     }
@@ -52,25 +45,26 @@ public class UserService {
                 .map(UserDto::new);
     }
     
-    public UserDto createUser(String email, String name, String password) {
+    public UserDto createUser(String email, String name) {
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email already exists");
         }
         
-        User user = new User(email, name, passwordEncoder.encode(password));
+        User user = new User(email, name);
         User saved = userRepository.save(user);
+        
+        // Publish user created event for Product server
+        userEventProducer.publishUserCreatedEvent(saved);
+        
         return new UserDto(saved);
     }
     
-    public Optional<UserDto> updateUser(Long id, String name, String password) {
+    public Optional<UserDto> updateUser(UUID id, String name) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (name != null) {
                 user.setName(name);
-            }
-            if (password != null && !password.isEmpty()) {
-                user.setPassword(passwordEncoder.encode(password));
             }
             User saved = userRepository.save(user);
             
@@ -82,7 +76,7 @@ public class UserService {
         return Optional.empty();
     }
     
-    public boolean deleteUser(Long id) {
+    public boolean deleteUser(UUID id) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
@@ -96,91 +90,4 @@ public class UserService {
         return false;
     }
     
-    public UserDto createOAuth2User(String email, String name, Provider provider) {
-        // Check if user already exists (login existing user)
-        Optional<User> existingUser = userRepository.findByEmail(email);
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            // Update login information
-            user.setLastLoginAt(java.time.LocalDateTime.now());
-            user.setLoginCount(user.getLoginCount() + 1);
-            User saved = userRepository.save(user);
-            return new UserDto(saved);
-        }
-        
-        // Create new OAuth2 user
-        User user = new User(email, name, null); // OAuth2 users don't have password
-        user.setProvider(provider);
-        user.setEmailVerified(false); // Email verification handled separately
-        user.setLastLoginAt(java.time.LocalDateTime.now());
-        user.setLoginCount(1);
-        User saved = userRepository.save(user);
-        return new UserDto(saved);
-    }
-    
-    public void updateLoginInfo(Long userId) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            user.setLastLoginAt(LocalDateTime.now());
-            user.setLoginCount(user.getLoginCount() + 1);
-            userRepository.save(user);
-        }
-    }
-    
-    public Optional<UserDto> authenticateUser(String email, String password) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            // Check if user is suspended
-            if (!user.getActive()) {
-                throw new RuntimeException("User account is suspended");
-            }
-            if (passwordEncoder.matches(password, user.getPassword())) {
-                // Update login info
-                user.setLastLoginAt(LocalDateTime.now());
-                user.setLoginCount(user.getLoginCount() + 1);
-                userRepository.save(user);
-                return Optional.of(new UserDto(user));
-            }
-        }
-        return Optional.empty();
-    }
-    
-    public Optional<UserDto> suspendUser(Long id) {
-        Optional<User> userOpt = userRepository.findById(id);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            user.setActive(false);
-            User saved = userRepository.save(user);
-            
-            // Publish user suspended event
-            userEventProducer.publishUserSuspendedEvent(saved);
-            
-            return Optional.of(new UserDto(saved));
-        }
-        return Optional.empty();
-    }
-    
-    public Optional<UserDto> activateUser(Long id) {
-        Optional<User> userOpt = userRepository.findById(id);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            user.setActive(true);
-            User saved = userRepository.save(user);
-            return Optional.of(new UserDto(saved));
-        }
-        return Optional.empty();
-    }
-    
-    public Optional<UserDto> verifyEmail(String email) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            user.setEmailVerified(true);
-            User saved = userRepository.save(user);
-            return Optional.of(new UserDto(saved));
-        }
-        return Optional.empty();
-    }
 }

@@ -1,4 +1,6 @@
-package com.example.userservice.dto.event;
+package com.example.userservice.event.model;
+
+import java.util.UUID;
 
 public class UserSuspendedEvent extends BaseUserEvent {
     
@@ -8,7 +10,7 @@ public class UserSuspendedEvent extends BaseUserEvent {
         super();
     }
 
-    public UserSuspendedEvent(Long userId, String email) {
+    public UserSuspendedEvent(UUID userId, String email) {
         super(userId, email);
     }
 

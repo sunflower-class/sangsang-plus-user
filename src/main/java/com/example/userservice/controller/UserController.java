@@ -2,15 +2,14 @@ package com.example.userservice.controller;
 
 import com.example.userservice.dto.UserDto;
 import com.example.userservice.dto.request.CreateUserRequest;
-import com.example.userservice.dto.request.CreateOAuth2UserRequest;
 import com.example.userservice.dto.request.UpdateUserRequest;
-import com.example.userservice.dto.request.VerifyEmailRequest;
 import com.example.userservice.dto.response.UserProfileResponse;
 import com.example.userservice.dto.response.PublicUserResponse;
-import com.example.userservice.dto.response.AdminUserResponse;
+import com.example.userservice.dto.response.UserIdResponse;
 import com.example.userservice.service.UserService;
-import com.example.userservice.service.UserEventProducer;
+import com.example.userservice.event.publisher.UserEventProducer;
 import com.example.userservice.model.User;
+import com.example.userservice.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,10 +26,11 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/users")
 @Validated
 @Tag(name = "User Management", description = "CRUD operations for user entities")
 public class UserController {
@@ -43,7 +43,7 @@ public class UserController {
     @Autowired
     private UserEventProducer userEventProducer;
     
-    @GetMapping("/users/health")
+    @GetMapping("/health")
     @Operation(summary = "Health Check", description = "Check User service health status")
     @ApiResponse(responseCode = "200", description = "Service is healthy")
     public ResponseEntity<Map<String, String>> health(HttpServletRequest request) {
@@ -55,13 +55,13 @@ public class UserController {
         return ResponseEntity.ok(Map.of("status", "OK", "service", "User Service"));
     }
     
-    @PostMapping("/users/test-event")
+    @PostMapping("/test-event")
     @Operation(summary = "Test Event Publishing", description = "Test endpoint for publishing user events")
     @ApiResponse(responseCode = "200", description = "Event published successfully")
     public ResponseEntity<Map<String, String>> testEvent(@RequestBody Map<String, String> request) {
         try {
             String eventType = request.getOrDefault("eventType", "USER_UPDATED");
-            Long userId = Long.parseLong(request.getOrDefault("userId", "1"));
+            UUID userId = UUID.fromString(request.getOrDefault("userId", UUID.randomUUID().toString()));
             
             // Create a dummy user for testing
             User testUser = new User();
@@ -95,17 +95,25 @@ public class UserController {
         }
     }
     
-    @GetMapping("/users")
+    @GetMapping("")
     @Operation(summary = "Get All Users", description = "Retrieve a paginated list of all users")
     @ApiResponse(responseCode = "200", description = "Users retrieved successfully")
-    public ResponseEntity<List<PublicUserResponse>> getUsers(
+    public ResponseEntity<?> getUsers(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
         logger.info("=== GET USERS REQUEST ====");
+        logger.info("Current user: {}", SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
         logger.info("Remote IP: {}", request.getRemoteAddr());
         logger.info("Request URI: {}", request.getRequestURI());
         logger.info("Query String: {}", request.getQueryString());
+        
+        if (!SecurityUtils.hasRole("ADMIN")) {
+            logger.warn("Unauthorized access attempt to get all users by: {}", 
+                SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied. Admin role required."));
+        }
+        
         List<UserDto> users = userService.getAllUsers(page, size);
         List<PublicUserResponse> publicUsers = users.stream()
                 .map(user -> userService.getUserEntityById(user.getId())
@@ -116,26 +124,85 @@ public class UserController {
         return ResponseEntity.ok(publicUsers);
     }
     
-    @GetMapping("/users/{id}")
+    @GetMapping("/{id}")
     @Operation(summary = "Get User by ID", description = "Retrieve a specific user by their ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "User found"),
+        @ApiResponse(responseCode = "403", description = "Access denied"),
         @ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<UserDto> getUserById(@Parameter(description = "User ID") @PathVariable Long id) {
+    public ResponseEntity<?> getUserById(@Parameter(description = "User ID") @PathVariable UUID id) {
+        if (!SecurityUtils.canAccessUser(id)) {
+            logger.warn("Unauthorized access attempt to user ID {} by: {}", 
+                id, SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied. You can only access your own profile or need admin role."));
+        }
+        
         Optional<UserDto> user = userService.getUserById(id);
         return user.map(ResponseEntity::ok)
                    .orElse(ResponseEntity.notFound().build());
     }
     
-    @GetMapping("/users/email/{email}")
-    public ResponseEntity<UserDto> getUserByEmail(@PathVariable String email) {
+    @GetMapping("/me")
+    @Operation(summary = "Get Current User Profile", description = "Retrieve the current authenticated user's profile")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User profile retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<?> getCurrentUserProfile() {
+        Optional<String> currentEmail = SecurityUtils.getCurrentUserEmail();
+        if (!currentEmail.isPresent()) {
+            return ResponseEntity.status(401).body(Map.of("error", "User not authenticated"));
+        }
+        
+        logger.info("Current user profile request from: {}", currentEmail.get());
+        
+        Optional<UserDto> user = userService.getUserByEmail(currentEmail.get());
+        if (user.isPresent()) {
+            Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
+            if (userEntity.isPresent()) {
+                UserProfileResponse profile = new UserProfileResponse(userEntity.get());
+                return ResponseEntity.ok(profile);
+            }
+        }
+        
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/email/{email}")
+    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
+        if (!SecurityUtils.canAccessUserByEmail(email)) {
+            logger.warn("Unauthorized access attempt to user email {} by: {}", 
+                email, SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied. You can only access your own profile or need admin role."));
+        }
+        
         Optional<UserDto> user = userService.getUserByEmail(email);
         return user.map(ResponseEntity::ok)
                    .orElse(ResponseEntity.notFound().build());
     }
     
-    @PostMapping("/users")
+    @GetMapping("/gateway/lookup/{email}")
+    @Operation(summary = "Gateway User ID Lookup", description = "Internal endpoint for gateway to retrieve user ID by email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User ID found"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<UserIdResponse> getUserIdByEmail(@PathVariable String email) {
+        logger.info("Gateway lookup request for email: {}", email);
+        
+        Optional<UserDto> user = userService.getUserByEmail(email);
+        if (user.isPresent()) {
+            UserIdResponse response = new UserIdResponse(user.get().getId(), user.get().getEmail());
+            return ResponseEntity.ok(response);
+        }
+        
+        logger.warn("User not found for gateway lookup: {}", email);
+        return ResponseEntity.notFound().build();
+    }
+    
+    @PostMapping("")
     @Operation(summary = "Create User", description = "Create a new user account")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "User created successfully"),
@@ -151,7 +218,7 @@ public class UserController {
         logger.info("X-Forwarded-For: {}", httpRequest.getHeader("X-Forwarded-For"));
         logger.info("Request Body - Email: {}, Name: {}", request.getEmail(), request.getName());
         try {
-            UserDto user = userService.createUser(request.getEmail(), request.getName(), request.getPassword());
+            UserDto user = userService.createUser(request.getEmail(), request.getName());
             Optional<User> userEntity = userService.getUserEntityById(user.getId());
             if (userEntity.isPresent()) {
                 UserProfileResponse profile = new UserProfileResponse(userEntity.get());
@@ -163,10 +230,16 @@ public class UserController {
         }
     }
     
-    @PutMapping("/users/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
         try {
-            Optional<UserDto> user = userService.updateUser(id, request.getName(), request.getPassword());
+            if (!SecurityUtils.canAccessUser(id)) {
+                logger.warn("Unauthorized update attempt for user ID {} by: {}", 
+                    id, SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
+                return ResponseEntity.status(403).body(Map.of("error", "Access denied. You can only update your own profile or need admin role."));
+            }
+            
+            Optional<UserDto> user = userService.updateUser(id, request.getName());
             if (user.isPresent()) {
                 Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
                 if (userEntity.isPresent()) {
@@ -180,8 +253,14 @@ public class UserController {
         }
     }
     
-    @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable UUID id) {
+        if (!SecurityUtils.canAccessUser(id)) {
+            logger.warn("Unauthorized delete attempt for user ID {} by: {}", 
+                id, SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied. You can only delete your own profile or need admin role."));
+        }
+        
         boolean deleted = userService.deleteUser(id);
         if (deleted) {
             return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
@@ -189,113 +268,4 @@ public class UserController {
         return ResponseEntity.notFound().build();
     }
     
-    @PostMapping("/users/authenticate")
-    @Operation(summary = "Authenticate User", description = "Verify user credentials for login")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Authentication successful"),
-        @ApiResponse(responseCode = "400", description = "Invalid credentials")
-    })
-    public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> credentials) {
-        try {
-            String email = credentials.get("email");
-            String password = credentials.get("password");
-            
-            Optional<UserDto> user = userService.authenticateUser(email, password);
-            if (user.isPresent()) {
-                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
-                if (userEntity.isPresent()) {
-                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
-                    return ResponseEntity.ok(profile);
-                }
-            }
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid credentials"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PostMapping("/users/oauth2")
-    @Operation(summary = "Create OAuth2 User", description = "Create or update user from OAuth2 provider")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "OAuth2 user created/updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Validation error")
-    })
-    public ResponseEntity<?> createOAuth2User(@Valid @RequestBody CreateOAuth2UserRequest request) {
-        try {
-            UserDto userDto = userService.createOAuth2User(request.getEmail(), request.getName(), request.getProvider());
-            Optional<User> userEntity = userService.getUserEntityById(userDto.getId());
-            if (userEntity.isPresent()) {
-                UserProfileResponse profile = new UserProfileResponse(userEntity.get());
-                return ResponseEntity.ok(profile);
-            }
-            return ResponseEntity.badRequest().body(Map.of("error", "Failed to retrieve OAuth2 user"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PutMapping("/users/{id}/suspend")
-    @Operation(summary = "Suspend User", description = "Suspend a user account")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "User suspended successfully"),
-        @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public ResponseEntity<?> suspendUser(@Parameter(description = "User ID") @PathVariable Long id) {
-        try {
-            Optional<UserDto> user = userService.suspendUser(id);
-            if (user.isPresent()) {
-                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
-                if (userEntity.isPresent()) {
-                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
-                    return ResponseEntity.ok(profile);
-                }
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PutMapping("/users/{id}/activate")
-    @Operation(summary = "Activate User", description = "Activate a suspended user account")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "User activated successfully"),
-        @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public ResponseEntity<?> activateUser(@Parameter(description = "User ID") @PathVariable Long id) {
-        try {
-            Optional<UserDto> user = userService.activateUser(id);
-            if (user.isPresent()) {
-                Optional<User> userEntity = userService.getUserEntityById(user.get().getId());
-                if (userEntity.isPresent()) {
-                    UserProfileResponse profile = new UserProfileResponse(userEntity.get());
-                    return ResponseEntity.ok(profile);
-                }
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-    
-    @PutMapping("/users/verify-email")
-    @Operation(summary = "Verify Email", description = "Mark user's email as verified after KeyCloak confirmation")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Email verified successfully"),
-        @ApiResponse(responseCode = "404", description = "User not found")
-    })
-    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
-        try {
-            Optional<UserDto> user = userService.verifyEmail(request.getEmail());
-            if (user.isPresent()) {
-                return ResponseEntity.ok(Map.of(
-                    "message", "Email verified successfully",
-                    "email", request.getEmail()
-                ));
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
 }

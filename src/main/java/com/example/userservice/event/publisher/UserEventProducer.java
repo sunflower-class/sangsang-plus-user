@@ -1,9 +1,10 @@
-package com.example.userservice.service;
+package com.example.userservice.event.publisher;
 
-import com.example.userservice.dto.event.BaseUserEvent;
-import com.example.userservice.dto.event.UserDeletedEvent;
-import com.example.userservice.dto.event.UserSuspendedEvent;
-import com.example.userservice.dto.event.UserUpdatedEvent;
+import com.example.userservice.event.model.BaseUserEvent;
+import com.example.userservice.event.model.UserCreatedEvent;
+import com.example.userservice.event.model.UserDeletedEvent;
+import com.example.userservice.event.model.UserSuspendedEvent;
+import com.example.userservice.event.model.UserUpdatedEvent;
 import com.example.userservice.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,11 @@ public class UserEventProducer {
 
     @Autowired
     private KafkaTemplate<String, BaseUserEvent> kafkaTemplate;
+
+    public void publishUserCreatedEvent(User user) {
+        UserCreatedEvent event = new UserCreatedEvent(user.getId(), user.getEmail(), user.getName());
+        publishEvent(event, "USER_CREATED");
+    }
 
     public void publishUserDeletedEvent(User user) {
         UserDeletedEvent event = new UserDeletedEvent(user.getId(), user.getEmail());

@@ -1,4 +1,4 @@
-package com.example.userservice.dto.event;
+package com.example.userservice.event.model;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -9,9 +9,11 @@ import java.util.UUID;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "eventType")
 @JsonSubTypes({
+    @JsonSubTypes.Type(value = UserCreatedEvent.class, name = "USER_CREATED"),
     @JsonSubTypes.Type(value = UserDeletedEvent.class, name = "USER_DELETED"),
     @JsonSubTypes.Type(value = UserSuspendedEvent.class, name = "USER_SUSPENDED"),
-    @JsonSubTypes.Type(value = UserUpdatedEvent.class, name = "USER_UPDATED")
+    @JsonSubTypes.Type(value = UserUpdatedEvent.class, name = "USER_UPDATED"),
+    @JsonSubTypes.Type(value = UserProfileEvent.class, name = "USER_PROFILE")
 })
 public abstract class BaseUserEvent {
     
@@ -20,7 +22,7 @@ public abstract class BaseUserEvent {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime timestamp;
     
-    private Long userId;
+    private UUID userId;
     private String email;
 
     public BaseUserEvent() {
@@ -28,7 +30,7 @@ public abstract class BaseUserEvent {
         this.timestamp = LocalDateTime.now();
     }
 
-    public BaseUserEvent(Long userId, String email) {
+    public BaseUserEvent(UUID userId, String email) {
         this();
         this.userId = userId;
         this.email = email;
@@ -53,11 +55,11 @@ public abstract class BaseUserEvent {
         this.timestamp = timestamp;
     }
 
-    public Long getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(UUID userId) {
         this.userId = userId;
     }
 

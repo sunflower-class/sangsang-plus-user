@@ -1,25 +1,24 @@
 package com.example.userservice.dto.response;
 
 import com.example.userservice.model.User;
+import java.util.UUID;
 
 public class PublicUserResponse {
-    private Long id;
+    private UUID id;
     private String name;
-    private String role;
     
     public PublicUserResponse() {}
     
     public PublicUserResponse(User user) {
         this.id = user.getId();
         this.name = user.getName();
-        this.role = user.getRole().toString();
     }
     
-    public Long getId() { 
+    public UUID getId() { 
         return id; 
     }
     
-    public void setId(Long id) { 
+    public void setId(UUID id) { 
         this.id = id; 
     }
     
@@ -29,13 +28,5 @@ public class PublicUserResponse {
     
     public void setName(String name) { 
         this.name = name; 
-    }
-    
-    public String getRole() { 
-        return role; 
-    }
-    
-    public void setRole(String role) { 
-        this.role = role; 
     }
 }
