@@ -28,13 +28,13 @@ public class EventHubsKafkaConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(EventHubsKafkaConfig.class);
 
-    @Value("${azure.eventhubs.namespace:}")
+    @Value("${AZURE_EVENTHUBS_NAMESPACE:${azure.eventhubs.namespace:}}")
     private String eventHubsNamespace;
     
     @Value("${AZURE_EVENTHUBS_CONNECTION_STRING:${azure.eventhubs.connection-string:}}")
     private String eventHubsConnectionString;
     
-    @Value("${azure.eventhubs.eventhub-name:user-events}")
+    @Value("${AZURE_EVENTHUB_NAME:${azure.eventhubs.eventhub-name:user-events}}")
     private String eventHubName;
 
     @Bean

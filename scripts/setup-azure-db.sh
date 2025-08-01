@@ -21,3 +21,34 @@ echo "Database setup completed!"
 echo ""
 echo "To migrate data from existing PostgreSQL, run:"
 echo "./scripts/migrate-to-azure.sh"
+
+
+# setup
+  -- Drop existing table (WARNING: This will delete all data)
+  DROP TABLE IF EXISTS users CASCADE;
+
+  -- Create new simplified users table with UUID primary key
+  CREATE TABLE users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) NOT NULL UNIQUE,
+      name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Create indexes for better performance
+  CREATE INDEX idx_users_email ON users(email);
+
+  -- Add trigger to update updated_at timestamp
+  CREATE OR REPLACE FUNCTION update_updated_at_column()
+  RETURNS TRIGGER AS $$
+  BEGIN
+      NEW.updated_at = CURRENT_TIMESTAMP;
+      RETURN NEW;
+  END;
+  $$ language 'plpgsql';
+
+  CREATE TRIGGER update_users_updated_at
+      BEFORE UPDATE ON users
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();

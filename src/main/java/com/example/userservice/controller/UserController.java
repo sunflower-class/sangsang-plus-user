@@ -121,7 +121,12 @@ public class UserController {
                         .orElse(null))
                 .filter(response -> response != null)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(publicUsers);
+        return ResponseEntity.ok(Map.of(
+            "users", publicUsers,
+            "page", page,
+            "size", size,
+            "total", publicUsers.size()
+        ));
     }
     
     @GetMapping("/{id}")
@@ -139,8 +144,11 @@ public class UserController {
         }
         
         Optional<UserDto> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
-                   .orElse(ResponseEntity.notFound().build());
+        if (user.isPresent()) {
+            return ResponseEntity.ok(user.get());
+        } else {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found", "id", id.toString()));
+        }
     }
     
     @GetMapping("/me")
@@ -172,15 +180,49 @@ public class UserController {
 
     @GetMapping("/email/{email}")
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
-        if (!SecurityUtils.canAccessUserByEmail(email)) {
+        // Enhanced authorization using User ID when available
+        if (!canAccessUserByEmailEnhanced(email)) {
             logger.warn("Unauthorized access attempt to user email {} by: {}", 
                 email, SecurityUtils.getCurrentUserEmail().orElse("anonymous"));
             return ResponseEntity.status(403).body(Map.of("error", "Access denied. You can only access your own profile or need admin role."));
         }
         
         Optional<UserDto> user = userService.getUserByEmail(email);
-        return user.map(ResponseEntity::ok)
-                   .orElse(ResponseEntity.notFound().build());
+        if (user.isPresent()) {
+            return ResponseEntity.ok(user.get());
+        } else {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found", "email", email));
+        }
+    }
+    
+    private boolean canAccessUserByEmailEnhanced(String targetUserEmail) {
+        if (SecurityUtils.hasRole("ADMIN")) {
+            logger.debug("User has ADMIN role, access granted to email user: {}", targetUserEmail);
+            return true;
+        }
+        
+        // Use User ID verification when available
+        Optional<UUID> currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId.isPresent()) {
+            logger.debug("Using User ID verification for email access check - User ID: {}, Target email: {}", 
+                currentUserId.get(), targetUserEmail);
+            
+            // Look up target user's ID by email
+            Optional<UserDto> targetUser = userService.getUserByEmail(targetUserEmail);
+            if (targetUser.isPresent()) {
+                boolean canAccess = currentUserId.get().equals(targetUser.get().getId());
+                logger.debug("User ID comparison check: current={}, target={} - Result: {}", 
+                    currentUserId.get(), targetUser.get().getId(), canAccess);
+                return canAccess;
+            } else {
+                logger.debug("Target user not found for email: {}", targetUserEmail);
+                return false;
+            }
+        }
+        
+        // Fallback to email comparison if no User ID available
+        logger.debug("Falling back to email comparison for access check");
+        return SecurityUtils.isCurrentUser(targetUserEmail);
     }
     
     @GetMapping("/gateway/lookup/{email}")

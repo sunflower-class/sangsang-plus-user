@@ -12,10 +12,6 @@ data:
     spring:
       application:
         name: user-service
-      
-      # encryption Config: 64 Hex Key(32bytes) for AES-256
-      encryption:
-        key: ${ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
         
       # kafka Configuration
       kafka:
@@ -24,7 +20,9 @@ data:
       # Azure Event Hubs Configuration
       azure:
         eventhubs:
-          connection-string: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA="
+          namespace: sangsangplus-eventhubs
+          connection-string: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=bL7m6coLCPDiFgnhFOg6HzQ+FSPhkjsBG+AEhPFs8ys=;EntityPath=user-events"
+          eventhub-name: user-events
         
       datasource:
         url: ${DATABASE_URL}

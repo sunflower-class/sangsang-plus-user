@@ -22,13 +22,27 @@ spec:
         env:
         - name: SPRING_CONFIG_LOCATION
           value: /config/application.yml
-        - name: ENCRYPTION_KEY
+        - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: encryption-secret
-              key: encryption.key
+              name: azure-postgres-secret
+              key: DATABASE_URL
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: azure-postgres-secret
+              key: DATABASE_USERNAME
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: azure-postgres-secret
+              key: DATABASE_PASSWORD
         - name: AZURE_EVENTHUBS_CONNECTION_STRING
-          value: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=X4eEsDXqTiDAu9BBQBKNnfDQ7k77ffboz+AEhO7s8iA="
+          value: "Endpoint=sb://sangsangplus-eventhubs.servicebus.windows.net/;SharedAccessKeyName=UserProducerKey;SharedAccessKey=bL7m6coLCPDiFgnhFOg6HzQ+FSPhkjsBG+AEhPFs8ys=;EntityPath=user-events"
+        - name: AZURE_EVENTHUBS_NAMESPACE
+          value: "sangsangplus-eventhubs"
+        - name: AZURE_EVENTHUB_NAME
+          value: "user-events"
         volumeMounts:
         - name: config-volume
           mountPath: /config
