@@ -75,6 +75,10 @@ public class EventHubsKafkaConfig {
         configProps.put("request.timeout.ms", 30000);
         configProps.put("delivery.timeout.ms", 120000);
         
+        // Message format compatibility settings
+        configProps.put("api.version.request", true);
+        configProps.put("api.version.fallback.ms", 0);
+        
         // Event type mappings for JSON serialization
         configProps.put(JsonSerializer.TYPE_MAPPINGS, 
             "userCreated:com.example.userservice.event.model.UserCreatedEvent," +
