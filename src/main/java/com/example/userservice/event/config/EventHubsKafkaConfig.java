@@ -66,18 +66,18 @@ public class EventHubsKafkaConfig {
         // Azure Event Hubs optimized settings
         configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
         configProps.put("client.dns.lookup", "use_all_dns_ips");
-        configProps.put("acks", "all");
+        configProps.put("acks", "1");
         configProps.put("retries", 3);
-        configProps.put("max.in.flight.requests.per.connection", 5);
-        configProps.put("enable.idempotence", true);
-        configProps.put("compression.type", "snappy");
+        configProps.put("max.in.flight.requests.per.connection", 1);
+        configProps.put("enable.idempotence", false);
+        configProps.put("compression.type", "none");
         configProps.put("linger.ms", 0);
         configProps.put("request.timeout.ms", 30000);
         configProps.put("delivery.timeout.ms", 120000);
         
-        // Message format compatibility settings
-        configProps.put("api.version.request", true);
-        configProps.put("api.version.fallback.ms", 0);
+        // Message format compatibility settings for Azure Event Hubs
+        configProps.put("api.version.request", false);
+        configProps.put("message.format.version", "2.0");
         
         // Event type mappings for JSON serialization
         configProps.put(JsonSerializer.TYPE_MAPPINGS, 
