@@ -111,7 +111,7 @@ jobs:
         kubectl wait --for=condition=available --timeout=300s deployment/user-service -n user-service
         
         # Get gateway service endpoint
-        SERVICE_URL=$(kubectl get service sangsang-plus-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        SERVICE_URL="oauth.buildingbite.com"
         
         # Health check through gateway
         curl -f http://${SERVICE_URL}/api/users/health || exit 1
