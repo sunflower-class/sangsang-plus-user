@@ -64,6 +64,7 @@ public class EventHubsKafkaConfig {
             "password=\"" + eventHubsConnectionString + "\";");
         
         // Azure Event Hubs optimized settings
+        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
         configProps.put("client.dns.lookup", "use_all_dns_ips");
         configProps.put("acks", "all");
         configProps.put("retries", 3);

@@ -25,3 +25,8 @@ spring:
   azure:
     eventhubs:
       connection-string: ${AZURE_EVENTHUBS_CONNECTION_STRING:""}
+
+  kafka:
+    producer:
+      properties:
+        spring.json.add.type.headers: false
