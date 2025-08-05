@@ -74,10 +74,12 @@ public class EventHubsKafkaConfig {
         configProps.put("linger.ms", 0);
         configProps.put("request.timeout.ms", 30000);
         configProps.put("delivery.timeout.ms", 120000);
+        configProps.put("batch.size", 16384);
+        configProps.put("buffer.memory", 33554432);
         
         // Message format compatibility settings for Azure Event Hubs
         configProps.put("api.version.request", false);
-        configProps.put("message.format.version", "2.0");
+        configProps.put("kafka.api.version", "2.0.0");
         
         // Event type mappings for JSON serialization
         configProps.put(JsonSerializer.TYPE_MAPPINGS, 
