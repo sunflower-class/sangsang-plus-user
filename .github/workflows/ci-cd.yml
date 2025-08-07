@@ -56,9 +56,7 @@ jobs:
       with:
         images: ${{ env.DOCKER_IMAGE }}
         tags: |
-          type=ref,event=branch
-          type=sha,prefix={{branch}}-,format=short
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=latest
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -90,25 +88,19 @@ jobs:
         mkdir -p $HOME/.kube
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
 
-    - name: Deploy to user-service namespace
+    - name: Deploy to sangsangplus-backend namespace
       run: |
-        # Update image tag in deployment.yaml
-        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-        sed -i "s|image: buildingbite/sangsangplus-user:.*|image: buildingbite/sangsangplus-user:main-${SHORT_SHA}|g" k8s-deployment.yaml
-        
-        # Apply to default namespace
-        kubectl apply -f k8s/namespace.yaml
+        # Apply deployment and service
         kubectl apply -f k8s/configmap.yaml
         kubectl apply -f k8s/deployment.yaml
-        kubectl apply -f k8s/service.yaml
 
         # Wait for rollout
-        kubectl rollout status deployment/user-service -n user-service --timeout=600s
+        kubectl rollout status deployment/user-service -n sangsangplus-backend --timeout=600s
 
     - name: Run health check
       run: |
         # Wait for deployment to be ready
-        kubectl wait --for=condition=available --timeout=300s deployment/user-service -n user-service
+        kubectl wait --for=condition=available --timeout=300s deployment/user-service -n sangsangplus-backend
         
         # Get gateway service endpoint
         SERVICE_URL="oauth.buildingbite.com"
