@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: user-service
-  namespace: user-service
+  namespace: sangsangplus-backend
 spec:
   replicas: 1
   selector:
@@ -69,3 +69,24 @@ spec:
       - name: config-volume
         configMap:
           name: user-service-config
+          
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: sangsangplus-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8081
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8081
+    protocol: TCP
