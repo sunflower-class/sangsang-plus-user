@@ -48,11 +48,11 @@ spec:
           mountPath: /config
         resources:
           requests:
-            memory: "300Mi"
-            cpu: "15m"
+            memory: "400Mi"
+            cpu: "65m"
           limits:
-            memory: "512Mi"
-            cpu: "150m"
+            memory: "768Mi"
+            cpu: "650m"
         livenessProbe:
           httpGet:
             path: /api/users/health
@@ -91,3 +91,4 @@ spec:
     targetPort: 8081
 
     protocol: TCP
+
